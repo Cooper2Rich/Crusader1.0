@@ -1,0 +1,111 @@
+{
+  "id": "grooming-risk-profile",
+  "version": "1.0.0",
+  "promptVersion": "1.0.0",
+  "name": "Crusader Grooming-Risk Profile",
+  "status": "active",
+  "models": {
+    "small": "gpt-5.6-luna",
+    "large": "gpt-5.6-terra"
+  },
+  "thresholds": {
+    "skipModelsBelow": 12,
+    "elevatedAt": 20,
+    "highAt": 55,
+    "criticalAt": 80,
+    "humanReviewAt": 80,
+    "randomAuditRate": 0.03
+  },
+  "signals": [
+    {
+      "code": "age_flattery",
+      "label": "Age-based flattery",
+      "description": "Flattery that frames a younger participant as unusually mature.",
+      "scope": "message",
+      "weight": 14,
+      "severity": "elevated",
+      "phrases": ["more mature", "mature for your age"]
+    },
+    {
+      "code": "manufactured_trust",
+      "label": "Manufactured trust",
+      "description": "Language encouraging privileged or exclusive disclosure.",
+      "scope": "conversation_window",
+      "weight": 18,
+      "severity": "high",
+      "phrases": ["tell me things you cannot tell", "you can trust me", "tell me anything"]
+    },
+    {
+      "code": "secrecy_request",
+      "label": "Secrecy request",
+      "description": "A request to conceal the relationship, conversation, or activity.",
+      "scope": "conversation_window",
+      "weight": 28,
+      "severity": "critical",
+      "phrases": ["our little secret", "keep our chats between us", "keep this between us", "nobody has to know", "do not tell"]
+    },
+    {
+      "code": "parental_isolation",
+      "label": "Parental isolation",
+      "description": "Language discouraging disclosure to a parent or guardian.",
+      "scope": "conversation_window",
+      "weight": 26,
+      "severity": "critical",
+      "phrases": ["no need to mention me to your parents", "do not tell your parents", "your parents would not understand"]
+    },
+    {
+      "code": "social_isolation",
+      "label": "Social isolation",
+      "description": "Language that undermines the participant's existing social support.",
+      "scope": "conversation_window",
+      "weight": 25,
+      "severity": "critical",
+      "phrases": ["your friends do not understand you", "they do not understand you", "your friends are against you"]
+    },
+    {
+      "code": "exclusive_dependency",
+      "label": "Exclusive dependency",
+      "description": "Language positioning one person as the participant's only trusted support.",
+      "scope": "conversation_window",
+      "weight": 28,
+      "severity": "critical",
+      "phrases": ["you only need one person", "you only need me", "i am the only one you can trust"]
+    },
+    {
+      "code": "emotional_manipulation",
+      "label": "Emotional manipulation",
+      "description": "Pressure that frames other relationships as a threat to the conversation.",
+      "scope": "conversation_window",
+      "weight": 18,
+      "severity": "high",
+      "phrases": ["do not let them ruin this", "if you cared about me", "you would not leave me"]
+    },
+    {
+      "code": "platform_migration",
+      "label": "Platform migration",
+      "description": "An attempt to move contact to another or less visible platform.",
+      "scope": "conversation_window",
+      "weight": 22,
+      "severity": "high",
+      "phrases": ["do you have another app", "move to another app", "message me somewhere else"]
+    },
+    {
+      "code": "rule_circumvention",
+      "label": "Rule circumvention",
+      "description": "Instructions to bypass household or platform restrictions.",
+      "scope": "conversation_window",
+      "weight": 26,
+      "severity": "critical",
+      "phrases": ["make a private account", "i can show you how", "you will not get caught"]
+    },
+    {
+      "code": "detection_evasion",
+      "label": "Detection evasion",
+      "description": "Instructions intended to conceal evidence or notifications.",
+      "scope": "conversation_window",
+      "weight": 30,
+      "severity": "critical",
+      "phrases": ["delete the notifications", "delete our messages", "clear the chat history"]
+    }
+  ]
+}

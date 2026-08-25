@@ -13,6 +13,13 @@ body .dossier-progress b,body .dossier-progress small{display:block;font-size:9p
 body .dossier-progress span{display:block;height:5px;background:#d9e2df;margin:8px 0 6px;overflow:hidden}
 body .dossier-progress span i{display:block;height:100%;background:linear-gradient(90deg,#0b7770,#d19a36);transition:width .45s ease}
 body .dossier-progress small{font-size:8px;color:#687b78}
+body .engine-route{margin:0 14px 12px;padding:9px 10px;border:1px solid #dce1dc;background:#f7f9f7}
+body .engine-route label,body .engine-route strong,body .engine-route small{display:block}
+body .engine-route strong{font-size:9px;letter-spacing:.06em;margin:4px 0;color:#24383b}
+body .engine-route small{font-size:8px;line-height:1.35;color:#728082;text-transform:capitalize}
+body .engine-route.analyzing{border-color:#d4b36d;background:#fff8ea}
+body .engine-route.complete{border-color:#9bc4be;background:#edf5f3}
+body .engine-route.unavailable{border-color:#d9aaa5;background:#fff3f1}
 body .populate{animation:populate .42s cubic-bezier(.2,.75,.25,1) both}
 @keyframes populate{from{opacity:0;transform:translateY(7px);filter:blur(1px)}to{opacity:1;transform:translateY(0);filter:blur(0)}}
 @media(prefers-reduced-motion:reduce){body .populate{animation:none}body .dossier-progress span i{transition:none}}

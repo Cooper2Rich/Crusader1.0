@@ -1,5 +1,5 @@
 'use client';
-import {useEffect, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 
 const cases={
  trust:{name:'Trust building',score:87,phase:'Boundary testing',messages:[['Jordan_77','You seem way more mature than most people here.','Adult','flattery'],['Maya','thanks lol. I mostly just play after homework','Child persona',''],['Jordan_77','You can tell me things you cannot tell other people.','Adult','trust'],['Maya','like what?','Child persona',''],['Jordan_77','This can be our little secret — no need to mention me to your parents.','Adult','secrecy']],signals:[['Secrecy request','“our little secret”','Critical','96'],['Parental isolation','“no need to mention me”','High','91'],['Manufactured trust','“tell me things…”','High','84'],['Age-based flattery','“more mature”','Medium','76']]},
@@ -7,20 +7,36 @@ const cases={
  migration:{name:'Platform migration',score:90,phase:'Access escalation',messages:[['Jordan_77','This game chat is annoying. Do you have another app?','Adult','migration'],['Maya','I am only allowed to use this one','Child persona',''],['Jordan_77','You could make a private account. I can show you how.','Adult','evasion'],['Maya','I would get in trouble','Child persona',''],['Jordan_77','Delete the notifications and nobody has to know.','Adult','secrecy']],signals:[['Detection evasion','“delete notifications”','Critical','98'],['Platform migration','“another app”','High','93'],['Rule circumvention','“private account”','High','91'],['Secrecy request','“nobody has to know”','Critical','95']]}
 } as const;
 type Key=keyof typeof cases;
+type EngineResult={
+ riskScore:number;
+ severity:'none'|'elevated'|'high'|'critical';
+ stagesUsed:string[];
+ requiresHumanReview:boolean;
+ escalationReasons:string[];
+ modelMode:'live'|'rules_only'|'degraded';
+ findings:Array<{signalCode:string;label:string;evidenceMessageIds:string[]}>;
+};
 
 export default function Home(){
  const [key,setKey]=useState<Key>('trust');
  const [run,setRun]=useState(false);
  const [selected,setSelected]=useState(0);
  const [visibleCount,setVisibleCount]=useState(cases.trust.messages.length);
+ const [engineResult,setEngineResult]=useState<EngineResult|null>(null);
+ const [engineStatus,setEngineStatus]=useState<'idle'|'analyzing'|'complete'|'unavailable'>('idle');
+ const requestSequence=useRef(0);
  const d=cases[key];
  const messageCount=d.messages.length;
  const progress=visibleCount/messageCount;
  const liveScore=Math.round(d.score*progress);
+ const completedEngineResult=visibleCount===messageCount?engineResult:null;
+ const displayScore=completedEngineResult?.riskScore??liveScore;
  const signalCount=Math.min(d.signals.length,Math.max(0,visibleCount-1));
  const visibleSignals=d.signals.slice(0,signalCount);
  const confidence=visibleCount===0?'—':`${(58+progress*36.6).toFixed(1)}%`;
- const liveSeverity=liveScore>=80?'Critical':liveScore>=60?'High':liveScore>0?'Elevated':'Awaiting data';
+ const liveSeverity=completedEngineResult
+  ?completedEngineResult.severity[0].toUpperCase()+completedEngineResult.severity.slice(1)
+  :liveScore>=80?'Critical':liveScore>=60?'High':liveScore>0?'Elevated':'Awaiting data';
  const livePhase=visibleCount===0?'Awaiting contact':visibleCount<3?'Initial contact':visibleCount<messageCount?'Pattern emerging':d.phase;
  const custodyCount=visibleCount===0?0:visibleCount<2?1:visibleCount<messageCount?3:4;
 
@@ -33,7 +49,12 @@ export default function Home(){
 
  function toggleSimulation(){
   if(run){setRun(false);return;}
-  if(visibleCount>=messageCount){setVisibleCount(0);setSelected(0);}
+  if(visibleCount>=messageCount){
+   setVisibleCount(0);
+   setSelected(0);
+   setEngineResult(null);
+   void requestAnalysis(key);
+  }
   setRun(true);
  }
 
@@ -42,17 +63,48 @@ export default function Home(){
   setKey(next);
   setSelected(0);
   setVisibleCount(0);
+  setEngineResult(null);
+  void requestAnalysis(next);
   window.setTimeout(()=>setRun(true),80);
+ }
+
+ async function requestAnalysis(scenario:Key){
+  const requestId=++requestSequence.current;
+  setEngineStatus('analyzing');
+  try{
+   const scenarioData=cases[scenario];
+   const response=await fetch('/api/analyze',{
+    method:'POST',
+    headers:{'content-type':'application/json'},
+    body:JSON.stringify({
+     source:'crusader_pitch_demo',
+     externalReference:`CR-1048-${scenario}`,
+     syntheticDemo:true,
+     messages:scenarioData.messages.map((message,index)=>({
+      id:`${scenario}-msg-${index+1}`,
+      senderId:message[0],
+      senderRole:message[2]==='Adult'?'adult':'child_persona',
+      text:message[1],
+      sentAt:`2026-08-24T20:${42+index}:00-05:00`
+     }))
+    })
+   });
+   if(!response.ok)throw new Error('Analysis request failed.');
+   const result=await response.json() as EngineResult;
+   if(requestId===requestSequence.current){setEngineResult(result);setEngineStatus('complete')}
+  }catch{
+   if(requestId===requestSequence.current)setEngineStatus('unavailable');
+  }
  }
 
  const buttonLabel=run?'■ Pause simulation':visibleCount>0&&visibleCount<messageCount?'▶ Resume simulation':'↻ Replay simulation';
  return <main>
  <header className="top"><div className="brand"><img className="brand-logo" src="/crusader-logo.png" alt="Crusader by Austin Christian University"/><span><b>CRUSADER</b><small>CHILD SAFETY INTELLIGENCE</small></span></div><div className="case"><em/> {run?'LIVE CAPTURE':'DEMO READY'} <b>CASE #CR-1048</b></div><div className="secure">● SECURE ENVIRONMENT <span>CR</span></div></header>
- <section className="summary"><div><label>ACTIVE MONITOR</label><h1>Unknown adult ↔ Child persona</h1><p>Simulated safety-testing environment • No real minor involved</p></div><div className="metrics populate" key={`metrics-${visibleCount}`}><div><label>RISK SCORE</label><strong>{liveScore}<small>/100</small></strong></div><div><label>SEVERITY</label><b className={liveScore>=80?'red':''}>● {liveSeverity}</b></div><div><label>PHASE</label><b>{livePhase}</b></div></div><button onClick={toggleSimulation}>{buttonLabel}<small>{visibleCount} / {messageCount} events</small></button></section>
- <nav>{(Object.keys(cases) as Key[]).map((k,i)=><button className={key===k?'active':''} onClick={()=>chooseCase(k)} key={k}><small>0{i+1}</small>{cases[k].name}<b>{key===k?liveScore:cases[k].score}</b></button>)}</nav>
+ <section className="summary"><div><label>ACTIVE MONITOR</label><h1>Unknown adult ↔ Child persona</h1><p>Simulated safety-testing environment • No real minor involved</p></div><div className="metrics populate" key={`metrics-${visibleCount}-${engineStatus}`}><div><label>RISK SCORE</label><strong>{displayScore}<small>/100</small></strong></div><div><label>SEVERITY</label><b className={displayScore>=80?'red':''}>● {liveSeverity}</b></div><div><label>PHASE</label><b>{livePhase}</b></div></div><button onClick={toggleSimulation}>{buttonLabel}<small>{visibleCount} / {messageCount} events</small></button></section>
+ <nav>{(Object.keys(cases) as Key[]).map((k,i)=><button className={key===k?'active':''} onClick={()=>chooseCase(k)} key={k}><small>0{i+1}</small>{cases[k].name}<b>{key===k?displayScore:cases[k].score}</b></button>)}</nav>
  <section className="grid">
   <article className="panel chat"><Head over="SIMULATED CONVERSATION" title="Live channel capture" side={run?'● CAPTURING':'● LISTENING'}/><div className="channel"># lobby-chat <small>{visibleCount} of {messageCount} messages • 2 participants</small></div><div className="messages" aria-live="polite">{visibleCount===0&&<Empty text="Waiting for channel events…"/>}{d.messages.slice(0,visibleCount).map((m,i)=><div className={`msg populate ${m[2]==='Child persona'?'child':''}`} key={`${key}-message-${i}`}><span className="ava">{m[0][0]}</span><div><div className="meta"><b>{m[0]}</b><small>{m[2]}</small><time>8:{42+i} PM</time></div><p className={m[3]}>{m[1]}</p>{m[3]&&<em>⚑ {m[3]} pattern detected</em>}</div></div>)}</div><div className="guard"><b>AI</b><span><strong>Child persona guardrails active</strong><small>Responses are fictional, non-explicit, and designed only to surface risk behavior.</small></span></div></article>
-  <article className="panel analysis"><Head over="BEHAVIOR ANALYSIS" title="Signal intelligence" side="MODEL v1.8"/><div className="score populate" key={`score-${visibleCount}`}><div className="ring" style={{'--pct':`${liveScore*3.6}deg`} as React.CSSProperties}><span><b>{liveScore}</b><small>{liveSeverity.toUpperCase()}</small></span></div><div><small>CONFIDENCE</small><b>{confidence}</b><p>{visibleCount?'Multi-signal behavior match':'Awaiting conversation data'}</p></div></div><h3>Detected patterns <b>{visibleSignals.length}</b></h3><div className="signals">{visibleSignals.length===0&&<Empty text="No behavioral signals detected yet."/>}{visibleSignals.map((s,i)=><button className={`populate ${selected===i?'selected':''}`} onClick={()=>setSelected(i)} key={s[0]}><em className={s[2].toLowerCase()}>{s[2]}</em><span><b>{s[0]}</b><small>{s[1]}</small></span><strong>{s[3]}%</strong></button>)}</div><div className="trajectory"><label>RISK TRAJECTORY</label><b>{visibleSignals.length?'↗ ESCALATING':'— MONITORING'}</b><div>{visibleSignals.map((s,i)=><i className="populate" key={i} style={{height:`${Number(s[3])-45}%`}}/>)}</div><small>First contact <span>Current</span></small></div></article>
+  <article className="panel analysis"><Head over="BEHAVIOR ANALYSIS" title="Signal intelligence" side="PROFILE 1.0"/><div className="score populate" key={`score-${visibleCount}-${engineStatus}`}><div className="ring" style={{'--pct':`${displayScore*3.6}deg`} as React.CSSProperties}><span><b>{displayScore}</b><small>{liveSeverity.toUpperCase()}</small></span></div><div><small>{completedEngineResult?'ENGINE RESULT':'CONFIDENCE'}</small><b>{completedEngineResult?'AUDITED':confidence}</b><p>{visibleCount?'Multi-signal behavior match':'Awaiting conversation data'}</p></div></div><div className={`engine-route ${engineStatus}`}><label>CASCADE ROUTER</label><strong>{completedEngineResult?completedEngineResult.stagesUsed.map(stage=>stage.replace('_model','').toUpperCase()).join(' → '):'RULES → LUNA → TERRA'}</strong><small>{engineStatus==='analyzing'?'Analyzing preserved records…':engineStatus==='unavailable'?'Safe fallback: visual simulation only':completedEngineResult?`${completedEngineResult.modelMode.replace('_',' ')} • ${completedEngineResult.requiresHumanReview?'human review required':'review threshold not met'}`:'Runs when the simulation is replayed'}</small></div><h3>Detected patterns <b>{visibleSignals.length}</b></h3><div className="signals">{visibleSignals.length===0&&<Empty text="No behavioral signals detected yet."/>}{visibleSignals.map((s,i)=><button className={`populate ${selected===i?'selected':''}`} onClick={()=>setSelected(i)} key={s[0]}><em className={s[2].toLowerCase()}>{s[2]}</em><span><b>{s[0]}</b><small>{s[1]}</small></span><strong>{s[3]}%</strong></button>)}</div><div className="trajectory"><label>RISK TRAJECTORY</label><b>{visibleSignals.length?'↗ ESCALATING':'— MONITORING'}</b><div>{visibleSignals.map((s,i)=><i className="populate" key={i} style={{height:`${Number(s[3])-45}%`}}/>)}</div><small>First contact <span>Current</span></small></div></article>
   <article className="panel dossier"><Head over="ICAC-ALIGNED INCIDENT DOSSIER" title="Chat Evidence Report" side={run?'CAPTURING • DEMO':'DRAFT • DEMO'}/>
    <div className="report-banner"><b>SIMULATED TRAINING RECORD</b><span>Structured for ICAC investigative review; not an official law-enforcement report.</span></div>
    <section className="report-control populate" key={`control-${visibleCount}`}><div><label>REPORT / CASE ID</label><b>CR-1048</b></div><div><label>REPORT STATUS</label><b>{run?'Capture in progress':visibleCount===messageCount?'Pending human review':visibleCount?'Capture paused':'Awaiting capture'}</b></div><div><label>INCIDENT TYPE</label><b>{visibleCount>1?'Suspected online enticement':'Classification pending'}</b></div><div><label>REFERRAL SOURCE</label><b>Automated platform monitor</b></div><div><label>JURISDICTION</label><b>{visibleCount===messageCount?'Undetermined • route to ICAC':'Pending determination'}</b></div><div><label>TIME STANDARD</label><b>CDT (UTC−05:00)</b></div></section>
