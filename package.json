@@ -1,9 +1,11 @@
 {
-  "name": "sites-project",
+  "name": "crusader-child-safety-intelligence",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "npm@11.9.0",
   "engines": {
-    "node": ">=22.13.0"
+    "node": ">=22.13.0",
+    "npm": ">=10.0.0"
   },
   "scripts": {
     "dev": "vinext dev",
