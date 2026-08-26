@@ -1,5 +1,7 @@
 # Crusader Child Safety Intelligence
 
+Consider a continuous integration pipeline and using /tdd to implement features. code and functions without unit tests is legacy code, inherently. 
+
 An installable demonstration of a child-safety conversation-analysis cascade. Deterministic rules run first, GPT-5.6 Luna reviews eligible cases, and GPT-5.6 Terra handles uncertain or escalated cases. High-risk outcomes remain subject to human review.
 
 ## Requirements
